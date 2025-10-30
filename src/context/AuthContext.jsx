@@ -65,10 +65,10 @@ export function AuthProvider({ children }) {
   // ✅ UPDATE VALUE OBJECT TO INCLUDE ALL FUNCTIONS:
   const value = {
     currentUser,
-    logout,
-    signInWithGoogle,
-    signInWithEmail,
-    signUpWithEmail,
+    logout,              // ← ADD THIS!
+    signInWithGoogle,    // ← ADD THIS!
+    signInWithEmail,     // ← ADD THIS!
+    signUpWithEmail,     // ← ADD THIS!
     loading
   };
 

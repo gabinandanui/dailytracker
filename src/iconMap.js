@@ -1,4 +1,4 @@
- // iconMap.js
+// iconMap.js
 import {
   faLungs,
   faDna,
@@ -6,7 +6,11 @@ import {
   faUtensils,
   faBrain,
   faDroplet,
-} from '@fortawesome/free-solid-svg-icons';
+  faRunning,
+  faHeart,
+  faFire,
+  faWalking,
+} from "@fortawesome/free-solid-svg-icons";
 
 export const iconMap = {
   faLungs,
@@ -15,4 +19,8 @@ export const iconMap = {
   faUtensils,
   faBrain,
   faDroplet,
+  faHeart,
+  faRunning,
+  faFire,
+  faWalking,
 };
