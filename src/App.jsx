@@ -9,12 +9,16 @@ import Box from "@mui/material/Box";
 // Your App Components
 import ResponsiveAppBar from "./components/NavBar";
 import Dashboard from "./pages/Dashboard";
+import FoodTracker from "./pages/FoodTracker";
+import WaterTracker from "./pages/WaterTracker";
+import MedicineTracker from "./pages/MedicineTracker";
+import UrineTracker from "./pages/UrineTracker";
 
 // Firebase Auth Components (These were missing)
 import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
-
+import CaloriesCalculator from "./pages/CaloriesCalculator";
 
 function App() {
   // Get the current user from the Auth Context
@@ -146,7 +150,60 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+          <Route
+            path="/food-tracker"
+            element={
+              <ProtectedRoute>
+                <FoodTracker
+                  setSnackBar={setSnackBar}
+                  setSnackBarMsg={setSnackBarMsg}
+                  intakeFoodHistoryData={intakeFoodHistoryData}
+                  setintakeFoodHistoryData={setintakeFoodHistoryData}
+                  targetCalories={targetCalories}
+                  setTargetCalories={setTargetCalories}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/calories-calculator"
+            element={
+              <ProtectedRoute>
+                <CaloriesCalculator />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/water-tracker"
+            element={
+              <ProtectedRoute>
+                <WaterTracker
+                  setSnackBar={setSnackBar}
+                  setSnackBarMsg={setSnackBarMsg}
+                  intakeWaterHistoryData={intakeWaterHistoryData}
+                  setintakeWaterHistoryData={setintakeWaterHistoryData}
+                  targetWater={targetWater}
+                  setTargetWater={setTargetWater}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/medicine-tracker"
+            element={
+              <ProtectedRoute>
+                <MedicineTracker />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/urine-tracker"
+            element={
+              <ProtectedRoute>
+                <UrineTracker />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Box>
     </>
