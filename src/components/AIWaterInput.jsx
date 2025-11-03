@@ -33,7 +33,8 @@ const AIWaterInput = ({ onIntakeAnalyzed }) => {
     const localDateTime = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()} ${pad(hours12)}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${ampm}`;
     
     console.log('🚀 Step 2: Making API request...');
-    const response = await fetch('/api/analyzeWaterIntake', {
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    const response = await fetch(`${API_BASE}/api/analyzeWaterIntake`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userInput: text, clientDateTime: localDateTime }),

@@ -81,7 +81,8 @@ Example response for “I drank a tea cup”:
     // Clean and parse the response
     const cleanedText = responseText.replace(/```json\n|\n```/g, '').trim();
     const jsonData = JSON.parse(cleanedText);
-     // If model returned "other" for food_name with non-zero quantity, treat as error
+
+    // If model returned "other" for food_name with non-zero quantity, treat as error
     const foods = ['dosa','idly','sandwich','pizza','burger','rice'];
     const lowerInput = userInput.toLowerCase();
     const foodDetected = foods.find(f => lowerInput.includes(f));
@@ -89,7 +90,23 @@ Example response for “I drank a tea cup”:
     if (foodDetected) {
       return res.status(400).json({ error: `Non-liquid item detected: ${foodDetected}` });
     }
-    res.status(200).json(jsonData);
+
+    // The AI response already contains all the information we need
+    // Just ensure the response has the required fields
+    const response = {
+      ...jsonData,
+      food_type: 'wateritem',
+      hydration_value: jsonData.hydration_value || jsonData.quantity,  // fallback to quantity if no hydration value
+      nutrition: jsonData.nutrition || {
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fats: 0,
+        fiber: 0
+      }
+    };
+
+    res.status(200).json(response);
     
   } catch (err) {
     console.error('Error in handler:', err);

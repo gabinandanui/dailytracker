@@ -81,7 +81,7 @@ const AutoCompleteComponent = ({
             </Paper>
           )}
           renderInput={(params) => (
-            <TextField {...params} label="Select a food" />
+            <TextField {...params}  />
           )}
         />
       </CardContent>

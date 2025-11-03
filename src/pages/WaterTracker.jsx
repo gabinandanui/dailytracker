@@ -1,5 +1,6 @@
 import React, { useRef } from 'react'
 import Card from '@mui/material/Card'
+import { generateId } from '../utils/generateId';
 import CardContent from '@mui/material/CardContent';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -10,7 +11,45 @@ import { useAuth } from '../context/AuthContext';
 
 const WaterTracker = ({ targetWater, setTargetWater, intakeWaterHistoryData, setintakeWaterHistoryData, setSnackBar, setSnackBarMsg }) => {
   const targetWaterRef = useRef(null);
-  const targetIntakeWaterRef = useRef(null);
+  const { currentUser } = useAuth();
+
+  // Load existing data on mount
+  React.useEffect(() => {
+    const loadExistingData = async () => {
+      if (!currentUser) return;
+
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        const today = new Date().toISOString().slice(0, 10);
+        const username = currentUser?.uid || currentUser?.displayName || currentUser?.email;
+        
+        const response = await fetch(`${API_BASE}/api/data/get/${username}/${today}`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        if (data?.waterdata?.length) {
+          // Map backend data to frontend format
+          const frontendItems = data.waterdata.map(item => ({
+            id: generateId(),
+            quantity: item.amount,
+            measurement: 'ml',
+            food_name: 'Water',
+            food_type: 'water',
+            dateTime: item.time,
+          }));
+          setintakeWaterHistoryData(frontendItems);
+
+          // Also sync to localStorage
+          const waterHistoryKey = `intakeWaterHistory_${currentUser.uid}`;
+          localStorage.setItem(waterHistoryKey, JSON.stringify(frontendItems));
+        }
+      } catch (err) {
+        console.error('Error loading water data:', err);
+      }
+    };
+
+    loadExistingData();
+  }, [currentUser, setintakeWaterHistoryData]);
 
   const handleTargetWaterChange = () => {
     const newTarge = parseInt(targetWaterRef.current.value, 10);
@@ -26,31 +65,67 @@ const WaterTracker = ({ targetWater, setTargetWater, intakeWaterHistoryData, set
     }, 0);
   }, [intakeWaterHistoryData])
 
-  const { currentUser } = useAuth();
-
-  const handleIntakeWaterAnalyzed = (data) => {
+  const handleIntakeWaterAnalyzed = async (data) => {
     if (data && data.quantity > 0) {
-      console.log(`AI detected you drank ${data.quantity}${data.measurement}. Adding to total.`);
-      // We use the same safe updater pattern here
-      let currentData = data;
-      let transferSavedDate;
-      console.log('====================================');
-      console.log(data);
-      console.log('====================================');
+      // Structure frontend item
+      const waterItem = {
+        id: generateId(),
+        ...data,
+        dateTime: new Date().toLocaleTimeString({hour12: true}),
+      };
+
+      // Update frontend state
+      setintakeWaterHistoryData(prev => [...prev, waterItem]);
+      
+      // Update localStorage
       const waterHistoryKey = `intakeWaterHistory_${currentUser.uid}`;
-      const waterTargetKey = `targetWater_${currentUser.uid}`;
       const savedWaterHistory = localStorage.getItem(waterHistoryKey);
-      const savedWaterTarget = localStorage.getItem(waterTargetKey);
-      if(savedWaterHistory && savedWaterHistory !== '[]') {
-        transferSavedDate = JSON.parse(savedWaterHistory);
-        transferSavedDate.push(data);
+      const updatedHistory = savedWaterHistory && savedWaterHistory !== '[]'
+        ? [...JSON.parse(savedWaterHistory), waterItem]
+        : [waterItem];
+      localStorage.setItem(waterHistoryKey, JSON.stringify(updatedHistory));
+
+      // Show success message with nutrition info if available
+      let message = `${data.quantity} ${data.measurement} of ${data.food_name}`;
+      if (data.nutrition && data.nutrition.calories > 0) {
+        message += ` added (${data.nutrition.calories} cal`;
+        if (data.nutrition.protein > 0) message += `, ${data.nutrition.protein}g protein`;
+        if (data.nutrition.carbs > 0) message += `, ${data.nutrition.carbs}g carbs`;
+        if (data.nutrition.fats > 0) message += `, ${data.nutrition.fats}g fats`;
+        message += ')';
+      } else {
+        message += ' added';
       }
-      else {
-        transferSavedDate = [data];
-      }
-      setintakeWaterHistoryData(transferSavedDate);
       setSnackBar(true);
-      setSnackBarMsg(`${data.quantity} ${data.measurement} of ${data.food_name} added`);
+      setSnackBarMsg(message);
+
+      // Save single water entry using atomic push
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        const response = await fetch(`${API_BASE}/api/data/addWater`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: currentUser?.uid || currentUser?.displayName || currentUser?.email,
+            date: new Date().toISOString().slice(0, 10),
+            waterItem: {
+              amount: data.quantity,
+              time: waterItem.dateTime
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const txt = await response.text();
+          console.error('Failed to save water entry:', txt);
+          setSnackBar(true);
+          setSnackBarMsg('Failed to save to server: ' + txt);
+        }
+      } catch (err) {
+        console.error('Error saving water entry:', err);
+        setSnackBar(true);
+        setSnackBarMsg('Error saving to server: ' + err.message);
+      }
     }
   };
 
