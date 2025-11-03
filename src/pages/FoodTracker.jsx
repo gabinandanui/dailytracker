@@ -25,7 +25,11 @@ const FoodTracker = ({
 
   const handleIntakeFoodAnalyzed = (data) => {
     console.log(data, currentUser);
-
+    if(data.measurement === null || data.quantity === null || data.quantity === "" || data.measurement === "" || Number(data.quantity) === 0 || Number(data.quantity) <= 0) {
+      setSnackBar(true);
+      setSnackBarMsg('Please enter a valid quantity and measurement');
+      return;
+    }
     // We use the same safe updater pattern here
     let currentData = data;
     let transferSavedDate;
@@ -57,27 +61,45 @@ const FoodTracker = ({
     if (savedFoodHistory && savedFoodHistory !== "[]") {
       transferSavedDate = JSON.parse(savedFoodHistory);
       transferSavedDate.push(structuredData);
-    } else {
-      transferSavedDate = [structuredData];
-    }
-    setintakeFoodHistoryData(transferSavedDate);
+          setintakeFoodHistoryData(transferSavedDate);
     setSnackBar(true);
     setSnackBarMsg(
       `${data.quantity} ${data.measurement} of ${data.food_name} added it is of ${structuredData.nutrition.calories} calories`
     );
+    } else {
+      transferSavedDate = [structuredData];
+    }
+    if(data.measurement === null || data.quantity === null || data.quantity === "" || data.measurement === "" || Number(data.quantity) === 0 || Number(data.measurement) === 0) {
+      setSnackBar(true);
+      setSnackBarMsg('Please enter a valid quantity and measurement');
+      return;
+    }
+    else {
+
+      setintakeFoodHistoryData(transferSavedDate);
+      setSnackBar(true);
+      setSnackBarMsg(
+        `${data.quantity} ${data.measurement} of ${data.food_name} added it is of ${structuredData.nutrition.calories} calories`
+      );
+    }
+
     console.log(structuredData);
   };
 
   const [footItem, setFootItem] = useState("");
   const [measurement, setMeasurement] = useState("");
   const [measurementDisable, setMeasurementDisable] = useState(true);
+  const [quantityDisable, setquantityDisable] = useState(true);
   const handleFoodSelection = (data) => {
     setFootItem(data);
     setMeasurement(null);
     setMeasurementDisable(data === null ? true : false);
+    setquantityDisable((data === null) || (data === "")|| (measurement === "" || measurement === null) ? true : false);
   };
   const handleMeasurementSelection = (data) => {
     setMeasurement(data);
+    setquantityDisable((data === null) || (data === "") ? true : false);
+
   };
   return (
     <div className="flex flex-col text-white text-left">
@@ -121,7 +143,7 @@ const FoodTracker = ({
                 variant="outlined"
                 type="number"
                 inputRef={foodQuantityRef}
-                disabled={measurementDisable}
+                disabled={quantityDisable}
                 sx={{
                   // Target the text inside the input field
                   "& .MuiInputBase-input": {

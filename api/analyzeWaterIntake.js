@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     // 2. USE the clientDateTime in the prompt instead of generating a new date
     const prompt = `

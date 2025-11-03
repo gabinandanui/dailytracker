@@ -54,7 +54,7 @@ const IntakeHistory = ({food_type, intakeHistoryData, setintakeHistoryData, setS
                 }} key={item.id}>
                   <span className='text-left flex mr-auto text-white items-center'>
                     <span className="animate-pulse mr-2">{item.food_info.icon}</span>
-                    {item.quantity} {item.measurement} of {item.food_type}
+                    {item.quantity} {item.measurement} of {item.food_name}
 
                     <span className="ml-auto">
 
