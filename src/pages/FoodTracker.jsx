@@ -1,6 +1,7 @@
 // src/pages/FoodTracker.jsx
 import React, { useState, useRef } from "react";
 import { foodDataByKey } from "../foodData";
+import { generateId } from "../utils/generateId";
 import AutoCompleteComponent from "../components/AutoCompleteComponent";
 import TextField from "@mui/material/TextField";
 import Card from "@mui/material/Card";
@@ -23,67 +24,154 @@ const FoodTracker = ({
   const foodQuantityRef = useRef(null);
   const { currentUser } = useAuth();
 
-  const handleIntakeFoodAnalyzed = (data) => {
-    console.log(data, currentUser);
+  // Load existing data on mount
+  React.useEffect(() => {
+    const loadExistingData = async () => {
+      if (!currentUser) return;
+
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        const today = new Date().toISOString().slice(0, 10);
+        const username = currentUser?.uid || currentUser?.displayName || currentUser?.email;
+        
+        const response = await fetch(`${API_BASE}/api/data/get/${username}/${today}`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        if (data?.Fooddata?.length) {
+          // Map backend data to frontend format
+          const frontendItems = data.Fooddata.map(item => ({
+            id: generateId(), // Guaranteed unique ID
+            quantity: 1, // Default as we don't store this
+            measurement: 'serving', // Default
+            food_name: item.name,
+            food_type: 'fooditem',
+            dateTime: new Date().toLocaleString({ hour12: true }),
+            food_info: {icon: '🍽️'},
+            nutrition: {
+              calories: item.calories,
+              protein: item.protein,
+              carbs: item.carbs,
+              fats: item.fat,
+              fiber: 0 // Not stored in backend
+            }
+          }));
+          setintakeFoodHistoryData(frontendItems);
+
+          // Also sync to localStorage
+          const foodHistoryKey = `intakeFoodHistory_${currentUser.uid}`;
+          localStorage.setItem(foodHistoryKey, JSON.stringify(frontendItems));
+        }
+      } catch (err) {
+        console.error('Error loading food data:', err);
+      }
+    };
+
+    loadExistingData();
+  }, [currentUser]);
+
+  const handleIntakeFoodAnalyzed = async (data) => {
     if(data.measurement === null || data.quantity === null || data.quantity === "" || data.measurement === "" || Number(data.quantity) === 0 || Number(data.quantity) <= 0) {
       setSnackBar(true);
       setSnackBarMsg('Please enter a valid quantity and measurement');
       return;
     }
-    // We use the same safe updater pattern here
-    let currentData = data;
-    let transferSavedDate;
+
+    // Get food data from our database
+    const foodData = foodDataByKey[data.food_name.toLowerCase()];
+    if (!foodData) {
+      setSnackBar(true);
+      setSnackBarMsg('Food not found in nutrition database');
+      return;
+    }
+
     function nutrientCalculator(measurement, quantity, nutrient) {
       let nutrientValue = 0;
-      foodDataByKey[data.food_name].measurements.forEach((e) => {
-        if (e.measurement === measurement) {
-          nutrientValue = e[nutrient];
+      const matchingMeasurement = foodData.measurements.find(m => m.measurement === measurement);
+      
+      if (matchingMeasurement) {
+        if (matchingMeasurement.type === 'weight' && nutrient === 'calories') {
+          nutrientValue = matchingMeasurement.caloriesPerGram;
+        } else if (matchingMeasurement.type === 'weight' && nutrient === 'protein') {
+          nutrientValue = matchingMeasurement.proteinPerGram;
+        } else if (matchingMeasurement.type === 'weight' && nutrient === 'carbs') {
+          nutrientValue = matchingMeasurement.carbsPerGram;
+        } else if (matchingMeasurement.type === 'weight' && nutrient === 'fats') {
+          nutrientValue = matchingMeasurement.fatsPerGram;
+        } else if (matchingMeasurement.type === 'weight' && nutrient === 'fiber') {
+          nutrientValue = matchingMeasurement.fiberPerGram;
+        } else {
+          nutrientValue = matchingMeasurement[nutrient];
         }
-      });
+      }
       return nutrientValue * quantity;
     }
-    const foodHistoryKey = `intakeFoodHistory_${currentUser.uid}`;
-    const savedFoodHistory = localStorage.getItem(foodHistoryKey);
-    let structuredData = {
-      id: Date.now(),
+
+    // Structure the frontend item
+    const structuredData = {
+      id: generateId(),
       quantity: data.quantity,
       measurement: data.measurement,
       food_name: data.food_name,
       food_type:'fooditem',
       dateTime: new Date().toLocaleString(),
       food_info: {icon: '🍽️'},
-      nutrition:{calories: nutrientCalculator(data.measurement, data.quantity, "calories"),
-      protein: nutrientCalculator(data.measurement, data.quantity, "protein"),
-      carbs: nutrientCalculator(data.measurement, data.quantity, "carbs"),
-      fats: nutrientCalculator(data.measurement, data.quantity, "fats"),
-      fiber: nutrientCalculator(data.measurement, data.quantity, "fiber"),}
+      nutrition:{
+        calories: nutrientCalculator(data.measurement, data.quantity, "calories"),
+        protein: nutrientCalculator(data.measurement, data.quantity, "protein"),
+        carbs: nutrientCalculator(data.measurement, data.quantity, "carbs"),
+        fats: nutrientCalculator(data.measurement, data.quantity, "fats"),
+        fiber: nutrientCalculator(data.measurement, data.quantity, "fiber"),
+      }
     };
-    if (savedFoodHistory && savedFoodHistory !== "[]") {
-      transferSavedDate = JSON.parse(savedFoodHistory);
-      transferSavedDate.push(structuredData);
-          setintakeFoodHistoryData(transferSavedDate);
+
+    // Update frontend state
+    setintakeFoodHistoryData(prev => [...prev, structuredData]);
+    
+    // Update localStorage
+    const foodHistoryKey = `intakeFoodHistory_${currentUser.uid}`;
+    const savedFoodHistory = localStorage.getItem(foodHistoryKey);
+    const updatedHistory = savedFoodHistory && savedFoodHistory !== "[]" 
+      ? [...JSON.parse(savedFoodHistory), structuredData]
+      : [structuredData];
+    localStorage.setItem(foodHistoryKey, JSON.stringify(updatedHistory));
+
+    // Show success message
     setSnackBar(true);
     setSnackBarMsg(
       `${data.quantity} ${data.measurement} of ${data.food_name} added it is of ${structuredData.nutrition.calories} calories`
     );
-    } else {
-      transferSavedDate = [structuredData];
-    }
-    if(data.measurement === null || data.quantity === null || data.quantity === "" || data.measurement === "" || Number(data.quantity) === 0 || Number(data.measurement) === 0) {
-      setSnackBar(true);
-      setSnackBarMsg('Please enter a valid quantity and measurement');
-      return;
-    }
-    else {
 
-      setintakeFoodHistoryData(transferSavedDate);
-      setSnackBar(true);
-      setSnackBarMsg(
-        `${data.quantity} ${data.measurement} of ${data.food_name} added it is of ${structuredData.nutrition.calories} calories`
-      );
-    }
+    // Save single item to backend using atomic push
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE}/api/data/addFood`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: currentUser?.uid || currentUser?.displayName || currentUser?.email,
+          date: new Date().toISOString().slice(0, 10),
+          foodItem: {
+            name: data.food_name,
+            calories: structuredData.nutrition.calories,
+            protein: structuredData.nutrition.protein,
+            carbs: structuredData.nutrition.carbs,
+            fat: structuredData.nutrition.fats
+          }
+        })
+      });
 
-    console.log(structuredData);
+      if (!response.ok) {
+        const txt = await response.text();
+        console.error('Failed to save food item:', txt);
+        setSnackBar(true);
+        setSnackBarMsg('Failed to save to server: ' + txt);
+      }
+    } catch (err) {
+      console.error('Error saving food item:', err);
+      setSnackBar(true);
+      setSnackBarMsg('Error saving to server: ' + err.message);
+    }
   };
 
   const [footItem, setFootItem] = useState("");
@@ -122,6 +210,7 @@ const FoodTracker = ({
             handleSelect={handleMeasurementSelection}
             value={measurement}
             measurementDisable={measurementDisable}
+            label={"Select Measurement"}
           />
 
           <Card
@@ -139,7 +228,7 @@ const FoodTracker = ({
                 Select Quantity
               </h2>
               <TextField
-                label="Quantity"
+               
                 variant="outlined"
                 type="number"
                 inputRef={foodQuantityRef}
